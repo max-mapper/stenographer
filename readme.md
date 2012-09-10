@@ -16,4 +16,8 @@ you fill find this out after playing with it but it works awesomely:
 
     output: sure porn porn Baltimore we are strong enough to prune trees call someone porn
 
+you can also pipe in raw audio (use -t to specify input format):
+
+    cat hello.mp3 | stenographer -t mp3
+
 BSD LICENSED (EAST BAY REPRESENT!)
