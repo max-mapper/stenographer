@@ -7,6 +7,12 @@ var path = require('path')
 var spawn = require('child_process').spawn;
 var concat = require('concat-stream')
 
+var trimStart = process.env['TRIMSTART'] || 0
+var chunkSize = process.env['CHUNKSIZE'] || 10
+chunkSize = +chunkSize
+trimStart = +trimStart
+var trimEnd = trimStart + chunkSize
+
 var args = process.argv.slice(2, process.argv.length)
 if (process.stdin.isTTY) {
   synthesizeAudio(args, function(err, flacStream) {
@@ -15,17 +21,18 @@ if (process.stdin.isTTY) {
   })
 } else {
   var concatStream = concat(processAudio)
+  concatStream.on('error', function(err) {
+    console.log('concatstream err', err)
+  })
+  process.stdout.on('error', logResults)
+  process.stdin.on('error', logResults)
+  process.on('error', logResults)
   process.stdin.pipe(concatStream)
 }
 
 function processAudio(err, audio) {
   var sampleRate
   var duration
-  var trimStart = process.env['TRIMSTART'] || 0
-  var chunkSize = process.env['CHUNKSIZE'] || 5
-  chunkSize = +chunkSize
-  trimStart = +trimStart
-  var trimEnd = trimStart + chunkSize
   getDuration(audio, function(err, _duration) {
     if (err) console.error(err)
     duration = _duration
@@ -39,8 +46,8 @@ function processAudio(err, audio) {
   function convert() {
     var flacStream = flacConvertStream(args, trimStart, trimEnd)
     stenographify(flacStream, audio, sampleRate, function(err, output) {
-      if (err) return console.log('stenographify error!', err)
-      process.stdout.write(output + " ")
+      if (err) process.stderr.write(err)
+      else process.stdout.write(output + " ")
       if (trimEnd < duration) {
         trimStart += chunkSize
         trimEnd += chunkSize
@@ -51,7 +58,7 @@ function processAudio(err, audio) {
 }
 
 function logResults(err, output) {
-  if (err) return console.error(err)
+  if (err) return console.log(err)
   console.log(output)
 }
 
@@ -66,6 +73,7 @@ function synthesizeAudio(words, cb) {
 
 function getDuration(audio, cb) {
   var durationStream = spawn('soxi', ['-D', '-'])
+  durationStream.stdin.on('error', function(err) { return })
   durationStream.stdin.write(audio)
   durationStream.stderr.pipe(process.stdout)
   durationStream.stdout.pipe(concat(function(err, duration) {
@@ -76,6 +84,7 @@ function getDuration(audio, cb) {
 
 function getSampleRate(audio, cb) {
   var sampleStream = spawn('soxi', ['-r', '-'])
+  sampleStream.stdin.on('error', function(err) { return })
   sampleStream.stdin.write(audio)
   sampleStream.stderr.pipe(process.stdout)
   sampleStream.stdout.pipe(concat(function(err, sampleRate) {
@@ -85,7 +94,10 @@ function getSampleRate(audio, cb) {
 }
 
 function flacConvertStream(args, start, end) {
-  var flacStream = spawn('sox', args.concat(['-', '-t', 'flac', '-', 'trim', start || '0', end || '5']))
+  var flacStream = spawn('sox', args.concat(['-', '-t', 'flac', '-', 'trim', start, end - start]))
+  flacStream.stdin.on('error', function(err) { return })
+  flacStream.stdout.on('error', function(err) { return })
+  // flacStream.stdout.pipe(fs.createWriteStream(start + '-' + end + '.flac'))  
   return flacStream
 }
 
@@ -93,7 +105,7 @@ function stenographify(flacStream, audio, sampleRate, cb) {
   var totallyOpenVoiceEncodingAPI = "https://www.google.com/speech-api/v1/recognize?xjerr=1&client=chromium&lang=en-US"
   var opts = {'url': totallyOpenVoiceEncodingAPI, "headers": {"content-type": "audio/x-flac; rate=" + sampleRate.toString().split('\n')[0]}}
   var upload = request.post(opts)
-
+  upload.on('error', function(err) { return })
   flacStream.stdout.pipe(upload).pipe(concat(function(err, resp) {
     if (err) return cb(err)
     resp = resp.toString()
@@ -102,10 +114,12 @@ function stenographify(flacStream, audio, sampleRate, cb) {
     } catch(e) {
       var output = resp
     }
-    if ( output.hypotheses && output.hypotheses.length > 0 && output.hypotheses[0].utterance ) {
+    if ( output.hypotheses ) {
+      if ( output.hypotheses.length === 0 ) return cb(false, "")
       output = output.hypotheses[0].utterance
+      return cb(false, output)
     }
-    cb(false, output)
+    cb(output.toString())
   }))
   flacStream.stdin.write(audio)
 }
