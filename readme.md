@@ -9,15 +9,24 @@ for funtimes:
     npm install stenographer -g
     stenographer hello yes this is dog
     
-you fill find this out after playing with it but it works awesomely:
+here is some example input and output:
 
-    input: I was seated by the shore of a small pond, about a mile and a half south
-    of the village of Concord and somewhat higher than it
-
-    output: sure porn porn Baltimore we are strong enough to prune trees call someone porn
+    input: I was seated by the shore of a small pond, about a mile and a half south of the village of Concord and somewhat higher than it
+    
+    output: I was heated by the shore the small pond about a mile and a half south of the villages Concord and somewhat tired and it
 
 you can also pipe in raw audio (use -t to specify input format):
 
-    cat hello.mp3 | stenographer -t mp3
+    cat hello.wav | stenographer -t wav
+
+if the audio you pipe in is longer than 10 seconds it will automatically get chunked and processed 10 seconds at a time. googles servers return errors if you upload large files but 5-10 second clips work okay
+
+you can control the chunk size and beginning offset using environment variables:
+
+    cat longaudio.wav | TRIMSTART=50 CHUNKSIZE=10 stenographer -t wav
+
+be warned that this library is pretty slow! it takes about 5-10 seconds for a 10 second audio clip to make a round trip to googles servers and back
+
+if you get errors regarding input format try converting your input file to a wav first: `sox input.mp3 output.wav`
 
 BSD LICENSED (EAST BAY REPRESENT!)
