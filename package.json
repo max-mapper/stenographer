@@ -1,0 +1,15 @@
+{
+  "author": "max ogden <mogden@gmail.com>",
+  "name": "stenographer",
+  "description": "use google robots to power humorous translations",
+  "version": "0.0.1",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "bin" : {
+    "stenographer" : "index.js"
+  }
+}
