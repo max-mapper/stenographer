@@ -45,7 +45,9 @@ function stenographify(flacStream) {
   getSampleRate(flacStream, function(err, sampleRate) {
     var totallyOpenVoiceEncodingAPI = "https://www.google.com/speech-api/v1/recognize?xjerr=1&client=chromium&lang=en-US"
     var upload = request.post({'url': totallyOpenVoiceEncodingAPI, "headers": {"content-type": "audio/x-flac; rate=" + sampleRate.toString().split('\n')[0]}})
-    bufferedStream.pipe(upload).pipe(process.stdout)    
+    bufferedStream.pipe(upload).pipe(concat(function(err, resp) {
+      console.log(JSON.parse(resp).hypotheses[0].utterance)
+    }))    
     bufferedStream.resume()
   })
 }
