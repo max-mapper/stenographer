@@ -25,8 +25,6 @@ you can control the chunk size and beginning offset using environment variables:
 
     cat longaudio.wav | TRIMSTART=50 CHUNKSIZE=10 stenographer -t wav
 
-be warned that this library is pretty slow! it takes about 5-10 seconds for a 10 second audio clip to make a round trip to googles servers and back
-
 if you get errors regarding input format try converting your input file to a wav first: `sox input.mp3 output.wav`
 
 BSD LICENSED (EAST BAY REPRESENT!)
