@@ -5,6 +5,8 @@ var os = require('os')
 var fs = require('fs')
 var path = require('path')
 var spawn = require('child_process').spawn;
+var concat = require('concat-stream')
+var BufferedStream = require('morestreams').BufferedStream;
 
 var args = process.argv.slice(2, process.argv.length)
 if (process.stdin.isTTY) {
@@ -24,6 +26,12 @@ function synthesizeAudio(words, cb) {
   })
 }
 
+function getSampleRate(audioStream, cb) {
+  var sampleStream = spawn('soxi', ['-r', '-'])
+  audioStream.stdout.pipe(sampleStream.stdin)
+  sampleStream.stdout.pipe(concat(cb))
+}
+
 function flacConvertStream(args, stream) {
   var flacStream = spawn('sox', args.concat(['-', '-t', 'flac', '-']))
   process.stdin.pipe(flacStream.stdin)
@@ -31,7 +39,13 @@ function flacConvertStream(args, stream) {
 }
 
 function stenographify(flacStream) {
-  var totallyOpenVoiceEncodingAPI = "https://www.google.com/speech-api/v1/recognize?xjerr=1&client=chromium&lang=en-US"
-  var upload = request.post({'url': totallyOpenVoiceEncodingAPI, "headers": {"content-type": "audio/x-flac; rate=16000"}})
-  flacStream.stdout.pipe(upload).pipe(process.stdout)
+  var bufferedStream = new BufferedStream()
+  bufferedStream.pause()
+  flacStream.stdout.pipe(bufferedStream)
+  getSampleRate(flacStream, function(err, sampleRate) {
+    var totallyOpenVoiceEncodingAPI = "https://www.google.com/speech-api/v1/recognize?xjerr=1&client=chromium&lang=en-US"
+    var upload = request.post({'url': totallyOpenVoiceEncodingAPI, "headers": {"content-type": "audio/x-flac; rate=" + sampleRate.toString().split('\n')[0]}})
+    bufferedStream.pipe(upload).pipe(process.stdout)    
+    bufferedStream.resume()
+  })
 }
